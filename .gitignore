@@ -1,0 +1,12 @@
+# Documents
+*.pdf
+
+# LaTeX files
+*.aux
+*.log
+*.out
+*.toc
+*.synctex.gz
+
+# MATLAB autosaves
+*.asv
