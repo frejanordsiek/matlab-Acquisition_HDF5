@@ -1,0 +1,293 @@
+% !TEX TS-program = pdflatex
+% !TEX encoding = UTF-8 Unicode
+
+% This is a simple template for a LaTeX document using the "article" class.
+% See "book", "report", "letter" for other types of document.
+
+\documentclass[12pt]{article} % use larger type; default would be 10pt
+
+\usepackage[utf8]{inputenc} % set input encoding (not needed with XeLaTeX)
+
+%%% Examples of Article customizations
+% These packages are optional, depending whether you want the features they provide.
+% See the LaTeX Companion or other references for full information.
+
+%%% PAGE DIMENSIONS
+\usepackage[margin=1in]{geometry} % to change the page dimensions
+
+%%% PACKAGES
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{hyperref}
+
+\usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
+
+
+%%% END Article customizations
+
+%%% The "real" document content comes below...
+
+\title{Acquisition HDF5 \\ Version 1.0.0}
+\author{Freja Nordsiek\footnote{Nonlinear Physics Laboratory, University of Maryland College Park, Paint Branch Drive, College Park, MD 20742-3511 USA}}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\tableofcontents
+
+\section{Introduction}
+
+This is a file format for saving data acquired from a DAQ to disk in real time for later processing.
+A format was needed that was not locked to one vendor and/or platform, would be easy to decipher and reverse engineer, use less disk space, and be salvageale if acquisition terminated prematurely.
+It is a Heirarchal Data Format version 5 (HDF5) based file format.
+HDF5 is a widely used open portable scientific data interchange format (\url{http://www.hdfgroup.org/HDF5/}), has open libraries for parsing the files and reading their contents that can be interfaced by many programming languages/environments on all the major OS's, has a graphical viewer that allows visual inspection of the contents of the files (critical for reverse engineering), supports compression, and handles the intricities of how numbers, especially floating point numbers, are internally prepresented on different computer platforms.
+This format is loosely based on the data structures for working with DAQ's in the MATLAB\textsuperscript{\textregistered} Data Acquisition Toolbox\textsuperscript{\texttrademark}.
+
+HDF5 files are set up in a heirarchal format modeled after the Unix filesystem with Groups as directories and Datasets as files.
+They are even accessed like files on a Unix filesystem as in \verb|/Info/DeviceName|.
+While HDF5 files support the use of attributes for both Groups and Datasets, this file format does not use them, but instead stores all metadata in their own Datasets.
+These files store file format identification information in the root Group \verb|/| ; information about the data acquisition system, hardware, and acquisition parameters in the Group \verb|/Info| ; and the actual acquired data and information on its target and stored binary formats in Group \verb|/Data|.
+Note, HDF5 uses C style array dimension order, as opposed to Fortran ordering (shared by MATLAB\textsuperscript{\textregistered}), which is row-column order.
+
+\section{Versions}
+
+Versions \verb|0.0.1| to \verb|1.0.0| are the same format even though they are labelled differently.
+Only a single trigger is currently supported.
+
+\section{Storage And Extraction}
+
+When acquiring with a DAQ, the data is returned by the driver in a raw/native form from each of the channels.
+This data is generally meant to be linearly scaled and an offset added when converted to floating point numbers for actual processing.
+The conversion is
+
+\begin{equation}
+	\label{eqn:scaling}
+	A = S \cdot A_r + D
+\end{equation}
+
+\noindent where $A_r$ is the raw/native data, $S$ is the scaling factor, $D$ is the offset, and $A$ is the scaled data.
+
+The raw/native data, $A_r$, is stored in the file and it should be type converted and scaled by Equation~\ref{eqn:scaling} before it is used.
+Now, the raw/native datatype could be signed or unsigned integers of a given bit depth or it may be a floating point number (some DAQ's do temperature compensation before returning the acquired samples).
+This datatype is stored in the file for ease of identification.
+As it is sometimes useful to store the data with a lower bit depth to save space when one knows it won't affect the accuracy appreciably (negligible overflows and/or rounding), saving the data in a different data type is supported, which is also stored in the file.
+Using the data type that the acquired data is stored as (Section~\ref{sec:data_storagetype}), the target data type (Section~\ref{sec:data_type}), the scaling factors for each channel (Section~\ref{sec:info_scalings}), and the offsets for each channel (Section~\ref{sec:info_offsets}); $A$ in Equation~\ref{eqn:scaling} can be constructed from the raw data $A_r$ (Section~\ref{sec:data_data}).
+
+The acquired data can optionally be compressed or have other filters applied to it.
+It is highly recommended to only use filters and non-proprietary compression algorithms (only the Deflate algorithm) contained in the HDF5 library.
+
+
+
+\section{Groups and Datasets}
+
+\subsection{/Type}
+
+\verb|1x1 String|
+
+String indicating the type of file this is.
+It is always set to \verb|"Acquisition HDF5"|.
+
+
+
+\subsection{/Version}
+
+\verb|1x1 String|
+
+Version string of the Acquisition HDF5 file format.
+Has the form \verb|"M.m.r"| where  \verb|M| is the major version, \verb|m| is the minor version, and \verb|r| is the revision number.
+
+
+
+\subsection{/Info/}
+
+Group containing many of the acquisition parameters.
+Where thise parameters correspond to fields in the data structures of the MATLAB\textsuperscript{\textregistered} Data Acquisition Toolbox\textsuperscript{\texttrademark}, a note is made.
+
+
+
+\subsubsection{/Info/VendorDriverDescription}
+
+\verb|1x1 String|
+
+String indicating the hardware vendor and driver.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \\ \verb|daqinfo.HwInfo.VendorDriverDescription|.
+
+
+
+\subsubsection{/Info/DeviceName}
+
+\verb|1x1 String|
+
+String name of the DAQ device (model).
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \newline \verb|daqinfo.HwInfo.DeviceName|.
+
+
+
+
+\subsubsection{/Info/ID}
+
+\verb|1x1 String|
+
+String ID of the DAQ device (which one if more than one is connected).
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.HwInfo.ID|.
+
+
+
+\subsubsection{/Info/TriggerType}
+
+\verb|1x1 String|
+
+String indicating the type of trigger that started the acquisition such as \verb|"hardware"|, \verb|"software"|, etc.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.ObjInfo.TriggerType|.
+
+
+
+\subsubsection{/Info/StartTime}
+
+\verb|1x6 Double|
+
+Clock vector (array of 6 doubles in year, month, day, hour, minute, seconds order) indicating when acquisition started (was triggered).
+All except for the seconds field should not have fractional parts.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \\ \verb|daqinfo.ObjInfo.InitialTriggerTime|.
+
+
+
+\subsubsection{/Info/SampleFrequency}
+
+\verb|1x1 Double|
+
+Double indicating the acquisition sample frequency in Hz.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \\ \verb|daqinfo.ObjInfo.SampleRate|.
+
+
+
+\subsubsection{/Info/InputType}
+
+\verb|1x1 String|
+
+String indicating what type of analog inputs were measured such as \verb|"Differential"|, \verb|"SingleEnded"|, etc.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.ObjInfo.InputType|.
+
+
+
+\subsubsection{/Info/NumberChannels}
+
+\verb|1x1 Int64|
+
+64-bit signed integer indicating the number of analog input channels that were acquired.
+
+
+
+\subsubsection{/Info/Bits}
+
+\verb|1x1 Int64|
+
+64-bit signed integer indicating the number of bits the ADC read.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.HwInfo.Bits|.
+
+
+
+\subsubsection{/Info/NumberSamples}
+
+\verb|1x1 Int64|
+
+64-bit signed integer indicating how many samples were acquired during acquisition.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.ObjInfo.SamplesAcquired|.
+
+
+
+\subsubsection{/Info/ChannelMappings}
+
+\verb|1xM Int64|
+
+64-bit signed integer array (\verb|M| is the number of channels) indicating which hardware channel each analog input channel corresponded to.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \\ \verb|daqinfo.ObjInfo.Channel(:).HwChannel|.
+
+
+
+\subsubsection{/Info/ChannelNames}
+
+\verb|1xM String|
+
+String array (\verb|M| is the number of channels) indicating the name of each channel.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.ObjInfo.Channel(:).ChannelName|.
+
+
+
+\subsubsection{/Info/ChannelInputRanges}
+
+\verb|Mx2 Double|
+
+Double array (\verb|M| is the number of channels) indicating the input ranges for each channel.
+Each row is a channel with two columns that are the minimum and maximum of the range.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.ObjInfo.Channel(:).InputRange|.
+
+
+
+\subsubsection{/Info/Offsets} \label{sec:info_offsets}
+
+\verb|1xM Double|
+
+Double array (\verb|M| is the number of channels) indicating the offset to add to each channel when reading it back (see Equation~\ref{eqn:scaling}).
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \\ \verb|daqinfo.ObjInfo.Channel(:).NativeOffset|.
+
+
+
+\subsubsection{/Info/Scalings} \label{sec:info_scalings}
+
+\verb|1xM Double|
+
+Double array (\verb|M| is the number of channels) indicating the scaling factor to multiply each channel by when reading it back (see Equation~\ref{eqn:scaling})
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \\ \verb|daqinfo.ObjInfo.Channel(:).NativeScaling|.
+
+
+
+\subsubsection{/Info/Units}
+
+\verb|1xM String|
+
+String array (\verb|M| is the number of channels) indicating the units for each channel such as \verb|"volts"|, etc.
+In MATLAB\textsuperscript{\textregistered}, it corresponds to \verb|daqinfo.ObjInfo.Channel(:).Units|.
+
+
+
+\subsection{/Data/}
+
+Group containing the acquired data and information about its datatype, both stored and what it should be when extracted.
+
+
+
+\subsubsection{/Data/Type} \label{sec:data_type}
+
+\verb|1x1 String|
+
+String  indicating the data type to convert to when extracting the data.
+It is one of the set \{\verb|"single"|, \verb|"double"|, \verb|"uintXX"|, \verb|"intXX"|\}.
+\verb|"single"| and \verb|"double"| are single and double precision floating point numbers respectively.
+\verb|uint| and \verb|int| are unsigned and signed integers respectively where the width in bits is specified by \verb|XX|, which must be 8, 16, 32, or 64.
+
+
+
+\subsubsection{/Data/StorageType} \label{sec:data_storagetype}
+
+\verb|1x1 String|
+
+String  indicating the data type that the acquired data is stored in.
+It is one of the set \{\verb|"single"|, \verb|"double"|, \verb|"uintXX"|, \verb|"intXX"|\}.
+See Section~\ref{sec:data_type} for an explanation of values.
+
+
+
+\subsubsection{/Data/Data} \label{sec:data_data} 
+
+\verb|NxM DATATYPE|
+
+Array of the acquired data.
+It is in the datatype specified by \verb|/Data/StorageType| and is \verb|NxM| where \verb|N| is the number of acquired samples and \verb|M| is the number of channels.
+This dataset may or may not be chunked and may or may not be compressed or have other filters applied.
+It is highly recommended to only use filters and non-proprietary compression algorithms (only the Deflate algorithm) contained in the HDF5 library.
+
+
+
+\end{document}
