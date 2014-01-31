@@ -120,13 +120,17 @@ if ~strcmpi(filetype,'Acquisition HDF5')
     error('Not an acquisition HDF5 file.');
 end
 
-% If the file is after version 1.0.0, it can't be read.
+% If the file is after version 1.1.0, it can't be read.
 
-if 1 == versionCompare(fileversion,'1.0.0')
-    error(['Cannot read file version ',fileversion,' > 1.0.0']);
+if 1 == versionCompare(fileversion,'1.1.0')
+    error(['Cannot read file version ',fileversion,' > 1.1.0']);
 end
 
 % Get all the fields in /Info and make the daqinfo object.
+
+if 1 == versionCompare(fileversion, '1.0.0')
+    daqinfo.HwInfo.Software = h5stringconvert(hdf5read(filename,'/Software'));
+end
 
 daqinfo.HwInfo.VendorDriverDescription = h5stringconvert(hdf5read(filename,'/Info/VendorDriverDescription'));
 daqinfo.HwInfo.DeviceName = h5stringconvert(hdf5read(filename,'/Info/DeviceName'));
