@@ -284,7 +284,7 @@ class Writer(object):
         # information should not be stored, and matlab compatibility
         # should not be done. While the former would make it easier to
         # read the strings back in the same format
-        hdf5storage.write(self._file_data, name='/', filename=filename,
+        hdf5storage.write(self._file_data, path='/', filename=filename,
                           truncate_existing=True,
                           store_type_information=False,
                           matlab_compatible=False)
