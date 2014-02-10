@@ -71,20 +71,20 @@ def _get_supported_version(version):
 class Writer(object):
     def __init__(self, filename,
                  version=b'1.1.0',
-                 vendor_driver_description=b'',
-                 device_name=b'',
-                 device_id=b'',
-                 trigger_type=b'',
-                 sample_frequency=np.float64(-1),
-                 input_type=b'',
-                 number_channels=np.int64(-1),
-                 bits=np.int64(-1),
-                 channel_mappings=None,
-                 channel_names=None,
-                 channel_input_ranges=None,
-                 offsets=None,
-                 scalings=None,
-                 units=None,
+                 VendorDriverDescription=b'',
+                 DeviceName=b'',
+                 ID=b'',
+                 TriggerType=b'',
+                 SampleFrequency=np.float64(-1),
+                 InputType=b'',
+                 NumberChannels=np.int64(-1),
+                 Bits=np.int64(-1),
+                 ChannelMappings=None,
+                 ChannelNames=None,
+                 ChannelInputRanges=None,
+                 Offsets=None,
+                 Scalings=None,
+                 Units=None,
                  data_type=b'double',
                  data_storage_type=b'single',
                  compression='gzip',
@@ -100,91 +100,91 @@ class Writer(object):
 
         # All the simple arguments must be the right type.
         if type(version) != bytes \
-                or type(vendor_driver_description) != bytes \
-                or type(device_name) != bytes \
-                or type(device_id) != bytes \
-                or type(trigger_type) != bytes \
-                or type(sample_frequency) != np.float64 \
-                or type(input_type) != bytes \
-                or type(number_channels) != np.int64 \
-                or type(bits) != np.int64 \
+                or type(VendorDriverDescription) != bytes \
+                or type(DeviceName) != bytes \
+                or type(ID) != bytes \
+                or type(TriggerType) != bytes \
+                or type(SampleFrequency) != np.float64 \
+                or type(InputType) != bytes \
+                or type(NumberChannels) != np.int64 \
+                or type(Bits) != np.int64 \
                 or type(data_type) != bytes \
                 or type(data_storage_type) != bytes:
             raise ValueError('At least one input argument is not of '
                              + 'right type.')
 
         # Check that we have a positive number of channels.
-        if number_channels < 1:
+        if NumberChannels < 1:
             raise ValueError('There must be at least one channel.')
 
         # If the channel mappings aren't given, make it the default
         # (incrementing integers from 0). If it is given, check it.
-        if channel_mappings is None:
-            channel_mappings = np.int64(np.r_[0:number_channels])
-        elif type(channel_mappings) != np.ndarray \
-                or channel_mappings.dtype.name != 'int64' \
-                or channel_mappings.shape != (number_channels, ):
-            raise ValueError('channel_mappings isn''t a numpy.int64 '
+        if ChannelMappings is None:
+            ChannelMappings = np.int64(np.r_[0:NumberChannels])
+        elif type(ChannelMappings) != np.ndarray \
+                or ChannelMappings.dtype.name != 'int64' \
+                or ChannelMappings.shape != (NumberChannels, ):
+            raise ValueError('ChannelMappings isn''t a numpy.int64 '
                              + 'row array with an element for each '
                              + 'channel.')
 
         # If the channel names aren't given, make it the default (all
         # b''). If it is given, check it.
-        if channel_names is None:
-            channel_names = np.zeros(shape=(number_channels, ),
+        if ChannelNames is None:
+            ChannelNames = np.zeros(shape=(NumberChannels, ),
                                      dtype='bytes')
-        elif type(channel_names) != np.ndarray \
-                or not channel_names.dtype.name.startswith('bytes') \
-                or channel_names.shape != (number_channels, ):
-            raise ValueError('channel_names isn''t a numpy.bytes_ '
+        elif type(ChannelNames) != np.ndarray \
+                or not ChannelNames.dtype.name.startswith('bytes') \
+                or ChannelNames.shape != (NumberChannels, ):
+            raise ValueError('ChannelNames isn''t a numpy.bytes_ '
                              + 'row array with an element for each '
                              + 'channel.')
 
         # If the channel input ranges aren't given, make it the default
         # (array from zeros). If it is given, check it.
-        if channel_input_ranges is None:
-            channel_input_ranges = np.zeros(shape=(number_channels, 2),
+        if ChannelInputRanges is None:
+            ChannelInputRanges = np.zeros(shape=(NumberChannels, 2),
                                             dtype='float64')
-        elif type(channel_input_ranges) != np.ndarray \
-                or channel_input_ranges.dtype.name != 'float64' \
-                or channel_input_ranges.shape != (number_channels, 2):
-            raise ValueError('channel_input_ranges isn''t a numpy '
+        elif type(ChannelInputRanges) != np.ndarray \
+                or ChannelInputRanges.dtype.name != 'float64' \
+                or ChannelInputRanges.shape != (NumberChannels, 2):
+            raise ValueError('ChannelInputRanges isn''t a numpy '
                              + 'float64 array with 2 columns and a ' \
                              + 'row for each channel.')
 
-        # If the offsets aren't given, make it the default (row of
+        # If the Offsets aren't given, make it the default (row of
         # zeros). If it is given, check it.
-        if offsets is None:
-            offsets = np.zeros(shape=(number_channels,),
+        if Offsets is None:
+            Offsets = np.zeros(shape=(NumberChannels,),
                                dtype='float64')
-        elif type(offsets) != np.ndarray \
-                or offsets.dtype.name != 'float64' \
-                or offsets.shape != (number_channels, ):
-            raise ValueError('offsets isn''t a numpy.float64 '
+        elif type(Offsets) != np.ndarray \
+                or Offsets.dtype.name != 'float64' \
+                or Offsets.shape != (NumberChannels, ):
+            raise ValueError('Offsets isn''t a numpy.float64 '
                              + 'row array with an element for each '
                              + 'channel.')
 
-        # If the scalings aren't given, make it the default (row of
+        # If the Scalings aren't given, make it the default (row of
         # ones). If it is given, check it.
-        if scalings is None:
-            scalings = np.ones(shape=(number_channels,),
+        if Scalings is None:
+            Scalings = np.ones(shape=(NumberChannels,),
                                dtype='float64')
-        elif type(scalings) != np.ndarray \
-                or scalings.dtype.name != 'float64' \
-                or scalings.shape != (number_channels, ):
-            raise ValueError('scalings isn''t a numpy.float64 '
+        elif type(Scalings) != np.ndarray \
+                or Scalings.dtype.name != 'float64' \
+                or Scalings.shape != (NumberChannels, ):
+            raise ValueError('Scalings isn''t a numpy.float64 '
                              + 'row array with an element for each '
                              + 'channel.')
 
-        # If the units aren't given, make it the default (all b''). If
+        # If the Units aren't given, make it the default (all b''). If
         # it is given, check it.
-        if units is None:
-            units = np.zeros(shape=(number_channels, ),
+        if Units is None:
+            Units = np.zeros(shape=(NumberChannels, ),
                              dtype='bytes')
-        elif type(units) != np.ndarray \
-                or not units.dtype.name.startswith('bytes') \
-                or units.shape != (number_channels, ):
-            raise ValueError('units isn''t a numpy.bytes_ '
+        elif type(Units) != np.ndarray \
+                or not Units.dtype.name.startswith('bytes') \
+                or Units.shape != (NumberChannels, ):
+            raise ValueError('Units isn''t a numpy.bytes_ '
                              + 'row array with an element for each '
                              + 'channel.')
 
@@ -222,7 +222,7 @@ class Writer(object):
         # positive.
 
         if chunks is None:
-            chunks = (1024, int(number_channels))
+            chunks = (1024, int(NumberChannels))
         elif chunks is True:
             pass
         elif not isinstance(chunks, tuple) or len(chunks) != 2:
@@ -236,7 +236,7 @@ class Writer(object):
                              + 'either an integer or None in the '
                              + 'second.')
         elif chunks[1] is None:
-            chunks = (chunks[0], int(number_channels))
+            chunks = (chunks[0], int(NumberChannels))
         elif not isinstance(chunks[1], int) or chunks[1] < 1:
             raise ValueError('chunks must be None, True, or a tuple '
                              + 'an integer as the first element and '
@@ -260,22 +260,22 @@ class Writer(object):
             'Software': np.bytes_(software), \
             'Info': { \
             'VendorDriverDescription': \
-            np.bytes_(vendor_driver_description), \
-            'DeviceName': np.bytes_(device_name), \
-            'ID': np.bytes_(device_id), \
-            'TriggerType': np.bytes_(trigger_type), \
+            np.bytes_(VendorDriverDescription), \
+            'DeviceName': np.bytes_(DeviceName), \
+            'ID': np.bytes_(ID), \
+            'TriggerType': np.bytes_(TriggerType), \
             'StartTime': np.zeros(shape=(6,), dtype='float64'), \
-            'SampleFrequency': sample_frequency, \
-            'InputType': np.bytes_(input_type), \
-            'NumberChannels': number_channels, \
-            'Bits': bits, \
+            'SampleFrequency': SampleFrequency, \
+            'InputType': np.bytes_(InputType), \
+            'NumberChannels': NumberChannels, \
+            'Bits': Bits, \
             'NumberSamples': np.int64(0), \
-            'ChannelMappings': channel_mappings, \
-            'ChannelNames': channel_names, \
-            'ChannelInputRanges': channel_input_ranges, \
-            'Offsets': offsets, \
-            'Scalings': scalings, \
-            'Units': units}, \
+            'ChannelMappings': ChannelMappings, \
+            'ChannelNames': ChannelNames, \
+            'ChannelInputRanges': ChannelInputRanges, \
+            'Offsets': Offsets, \
+            'Scalings': Scalings, \
+            'Units': Units}, \
             'Data': { \
             'Type': np.bytes_(data_type), \
             'StorageType': np.bytes_(data_storage_type)}}
@@ -299,9 +299,9 @@ class Writer(object):
             self._file = h5py.File(filename)
 
             self._file['/Data'].create_dataset('Data', \
-                shape=(0, number_channels), \
+                shape=(0, NumberChannels), \
                 dtype=self._data_types[data_storage_type], \
-                maxshape=(None, number_channels), \
+                maxshape=(None, NumberChannels), \
                 compression=compression, \
                 compression_opts=compression_opts, \
                 shuffle=shuffle, \
@@ -356,11 +356,11 @@ class Writer(object):
         return self._file['/Info/NumberSamples'][()]
 
     @property
-    def start_time(self):
+    def StartTime(self):
         return self._file['/Info/StartTime'][...]
 
-    @start_time.setter
-    def start_time(self, value):
+    @StartTime.setter
+    def StartTime(self, value):
         if type(value) == np.ndarray and value.dtype.name == 'float64' \
                 and value.shape == (6, ):
             self._file['/Info/StartTime'][:] = value
