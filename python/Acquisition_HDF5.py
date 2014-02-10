@@ -70,120 +70,157 @@ def _get_supported_version(version):
 
 class Writer(object):
     def __init__(self, filename,
-                 version=b'1.1.0',
-                 VendorDriverDescription=b'',
-                 DeviceName=b'',
-                 ID=b'',
-                 TriggerType=b'',
-                 SampleFrequency=np.float64(-1),
-                 InputType=b'',
-                 NumberChannels=np.int64(-1),
-                 Bits=np.int64(-1),
-                 ChannelMappings=None,
-                 ChannelNames=None,
-                 ChannelInputRanges=None,
-                 Offsets=None,
-                 Scalings=None,
-                 Units=None,
+                 Version=b'1.1.0',
                  data_type=b'double',
                  data_storage_type=b'single',
                  compression='gzip',
                  compression_opts=9,
                  shuffle=True,
                  fletcher32=True,
-                 chunks=(1024, None)):
+                 chunks=(1024, None),
+                 Info=dict(),
+                 **keywords):
         # Set this first before anything else so that nothing goes wrong
         # on deletion.
         self._file = None
-        
+
+        # Check that the Version is valid, and get the Version string we
+        # will be using.
+        if not isinstance(Version, bytes):
+            raise ValueError('Version must be a bytes.')
+
+        new_version = _get_supported_version(Version.decode()).encode()
+        if new_version is None:
+            raise ValueError('Unsupported Version.')
+
+        # First, if any additional keyword arguments were given, they
+        # need to be stuffed into Info.
+        for k, v in keywords.items():
+            Info[k] = v
+
         # Validate inputs.
 
-        # All the simple arguments must be the right type.
-        if type(version) != bytes \
-                or type(VendorDriverDescription) != bytes \
-                or type(DeviceName) != bytes \
-                or type(ID) != bytes \
-                or type(TriggerType) != bytes \
-                or type(SampleFrequency) != np.float64 \
-                or type(InputType) != bytes \
-                or type(NumberChannels) != np.int64 \
-                or type(Bits) != np.int64 \
+        # All the simple arguments must be the right type, and that the
+        # right things are there.
+
+        if type(Version) != bytes \
                 or type(data_type) != bytes \
                 or type(data_storage_type) != bytes:
-            raise ValueError('At least one input argument is not of '
+            raise ValueError('At least one input arguments is not of '
                              + 'right type.')
 
+        # Various parameters in info that need to be checked. In each
+        # tuple, the first element is the name, the second is a buple of
+        # types it must be one of, and the third is a default value to
+        # give if present (if no default value is present, the parameter
+        # is required to be given).
+
+        params = [ \
+            ('VenderDriverDescription', (bytes, np.bytes_), b''), \
+            ('DeviceName', (bytes, np.bytes_), b''), \
+            ('ID', (bytes, np.bytes_), b''), \
+            ('TriggerType', (bytes, np.bytes_), b''), \
+            ('SampleFrequency', (np.float64,)), \
+            ('InputType', (bytes, np.bytes_), b''), \
+            ('NumberChannels', (np.int64,)), \
+            ('Bits', (np.int64,), np.int64(-1)), \
+            ('ChannelMappings', (np.ndarray, type(None)), None), \
+            ('ChannelNames', (np.ndarray, type(None)), None), \
+            ('ChannelInputRanges', (np.ndarray, type(None)), None), \
+            ('Offsets', (np.ndarray, type(None)), None), \
+            ('Scalings', (np.ndarray, type(None)), None), \
+            ('Units', (np.ndarray, type(None)), None)]
+
+        for param in params:
+            if param[0] in Info:
+                if not isinstance(Info[param[0]], param[1]):
+                    raise ValueError("Info['" + param[0] + "'] is "
+                                     + 'not the right type.')
+            elif len(param) > 2:
+                Info[param[0]] = param[2]
+            else:
+                raise ValueError("Info is missing field '"
+                                 + param[0] + "'.")
+
+
         # Check that we have a positive number of channels.
-        if NumberChannels < 1:
+        if Info['NumberChannels'] < 1:
             raise ValueError('There must be at least one channel.')
 
         # If the channel mappings aren't given, make it the default
         # (incrementing integers from 0). If it is given, check it.
-        if ChannelMappings is None:
-            ChannelMappings = np.int64(np.r_[0:NumberChannels])
-        elif type(ChannelMappings) != np.ndarray \
-                or ChannelMappings.dtype.name != 'int64' \
-                or ChannelMappings.shape != (NumberChannels, ):
+        if Info['ChannelMappings'] is None:
+            Info['ChannelMappings'] = np.int64( \
+                np.r_[0:Info['NumberChannels']])
+        elif type(Info['ChannelMappings']) != np.ndarray \
+                or Info['ChannelMappings'].dtype.name != 'int64' \
+                or Info['ChannelMappings'].shape \
+                != (Info['NumberChannels'], ):
             raise ValueError('ChannelMappings isn''t a numpy.int64 '
                              + 'row array with an element for each '
                              + 'channel.')
 
         # If the channel names aren't given, make it the default (all
         # b''). If it is given, check it.
-        if ChannelNames is None:
-            ChannelNames = np.zeros(shape=(NumberChannels, ),
-                                     dtype='bytes')
-        elif type(ChannelNames) != np.ndarray \
-                or not ChannelNames.dtype.name.startswith('bytes') \
-                or ChannelNames.shape != (NumberChannels, ):
+        if Info['ChannelNames'] is None:
+            Info['ChannelNames'] = \
+                np.zeros(shape=(Info['NumberChannels'], ), \
+                dtype='bytes')
+        elif type(Info['ChannelNames']) != np.ndarray \
+                or not Info['ChannelNames'].dtype.name.startswith( \
+                'bytes') \
+                or Info['ChannelNames'].shape \
+                != (Info['NumberChannels'], ):
             raise ValueError('ChannelNames isn''t a numpy.bytes_ '
                              + 'row array with an element for each '
                              + 'channel.')
 
         # If the channel input ranges aren't given, make it the default
         # (array from zeros). If it is given, check it.
-        if ChannelInputRanges is None:
-            ChannelInputRanges = np.zeros(shape=(NumberChannels, 2),
-                                            dtype='float64')
-        elif type(ChannelInputRanges) != np.ndarray \
-                or ChannelInputRanges.dtype.name != 'float64' \
-                or ChannelInputRanges.shape != (NumberChannels, 2):
+        if Info['ChannelInputRanges'] is None:
+            Info['ChannelInputRanges'] = np.zeros(\
+                shape=(Info['NumberChannels'], 2), dtype='float64')
+        elif type(Info['ChannelInputRanges']) != np.ndarray \
+                or Info['ChannelInputRanges'].dtype.name != 'float64' \
+                or Info['ChannelInputRanges'].shape \
+                != (Info['NumberChannels'], 2):
             raise ValueError('ChannelInputRanges isn''t a numpy '
                              + 'float64 array with 2 columns and a ' \
                              + 'row for each channel.')
 
         # If the Offsets aren't given, make it the default (row of
         # zeros). If it is given, check it.
-        if Offsets is None:
-            Offsets = np.zeros(shape=(NumberChannels,),
-                               dtype='float64')
-        elif type(Offsets) != np.ndarray \
-                or Offsets.dtype.name != 'float64' \
-                or Offsets.shape != (NumberChannels, ):
+        if Info['Offsets'] is None:
+            Info['Offsets'] = np.zeros( \
+                shape=(Info['NumberChannels'],), dtype='float64')
+        elif type(Info['Offsets']) != np.ndarray \
+                or Info['Offsets'].dtype.name != 'float64' \
+                or Info['Offsets'].shape \
+                != (Info['NumberChannels'], ):
             raise ValueError('Offsets isn''t a numpy.float64 '
                              + 'row array with an element for each '
                              + 'channel.')
 
         # If the Scalings aren't given, make it the default (row of
         # ones). If it is given, check it.
-        if Scalings is None:
-            Scalings = np.ones(shape=(NumberChannels,),
-                               dtype='float64')
-        elif type(Scalings) != np.ndarray \
-                or Scalings.dtype.name != 'float64' \
-                or Scalings.shape != (NumberChannels, ):
+        if Info['Scalings'] is None:
+            Info['Scalings'] = np.ones(shape=(Info['NumberChannels'],),
+                                       dtype='float64')
+        elif type(Info['Scalings']) != np.ndarray \
+                or Info['Scalings'].dtype.name != 'float64' \
+                or Info['Scalings'].shape != (Info['NumberChannels'], ):
             raise ValueError('Scalings isn''t a numpy.float64 '
                              + 'row array with an element for each '
                              + 'channel.')
 
         # If the Units aren't given, make it the default (all b''). If
         # it is given, check it.
-        if Units is None:
-            Units = np.zeros(shape=(NumberChannels, ),
-                             dtype='bytes')
-        elif type(Units) != np.ndarray \
-                or not Units.dtype.name.startswith('bytes') \
-                or Units.shape != (NumberChannels, ):
+        if Info['Units'] is None:
+            Info['Units'] = np.zeros(shape=(Info['NumberChannels'], ),
+                                     dtype='bytes')
+        elif type(Info['Units']) != np.ndarray \
+                or not Info['Units'].dtype.name.startswith('bytes') \
+                or Info['Units'].shape != (Info['NumberChannels'], ):
             raise ValueError('Units isn''t a numpy.bytes_ '
                              + 'row array with an element for each '
                              + 'channel.')
@@ -211,18 +248,12 @@ class Writer(object):
                 + b', '.join(list(self._data_types.keys())).decode() \
                 + b').')
 
-        # Check that the version is valid, and get the version string we
-        # will be using.
-        new_version = _get_supported_version(version.decode()).encode()
-        if new_version is None:
-            raise ValueError('Unsupported version.')
-
         # Validate chunks to make sure it is None, True, a tuple of two
         # ints, or a tuple of an int and None. All integers must be
         # positive.
 
         if chunks is None:
-            chunks = (1024, int(NumberChannels))
+            chunks = (1024, int(Info['NumberChannels']))
         elif chunks is True:
             pass
         elif not isinstance(chunks, tuple) or len(chunks) != 2:
@@ -236,7 +267,7 @@ class Writer(object):
                              + 'either an integer or None in the '
                              + 'second.')
         elif chunks[1] is None:
-            chunks = (chunks[0], int(NumberChannels))
+            chunks = (chunks[0], int(Info['NumberChannels']))
         elif not isinstance(chunks[1], int) or chunks[1] < 1:
             raise ValueError('chunks must be None, True, or a tuple '
                              + 'an integer as the first element and '
@@ -248,7 +279,7 @@ class Writer(object):
         # Pack all of the information together, including putting in
         # placeholders for the start time and the number of samples
         # taken. The file type and software information is also put
-        # in. All strings are converted to numpy bytes.
+        # in.
 
         software = __name__ + ' ' + __version__ + ' on ' \
             + platform.python_implementation() + ' ' \
@@ -258,27 +289,14 @@ class Writer(object):
             'Type': np.bytes_(b'Acquisition HDF5'), \
             'Version': np.bytes_(new_version), \
             'Software': np.bytes_(software), \
-            'Info': { \
-            'VendorDriverDescription': \
-            np.bytes_(VendorDriverDescription), \
-            'DeviceName': np.bytes_(DeviceName), \
-            'ID': np.bytes_(ID), \
-            'TriggerType': np.bytes_(TriggerType), \
-            'StartTime': np.zeros(shape=(6,), dtype='float64'), \
-            'SampleFrequency': SampleFrequency, \
-            'InputType': np.bytes_(InputType), \
-            'NumberChannels': NumberChannels, \
-            'Bits': Bits, \
-            'NumberSamples': np.int64(0), \
-            'ChannelMappings': ChannelMappings, \
-            'ChannelNames': ChannelNames, \
-            'ChannelInputRanges': ChannelInputRanges, \
-            'Offsets': Offsets, \
-            'Scalings': Scalings, \
-            'Units': Units}, \
+            'Info': Info, \
             'Data': { \
             'Type': np.bytes_(data_type), \
             'StorageType': np.bytes_(data_storage_type)}}
+
+        self._file_data['Info']['StartTime'] = np.zeros(shape=(6,),
+                                                        dtype='float64')
+        self._file_data['Info']['NumberSamples'] = np.int64(0)
 
         # Write it all to file, truncating it if it exists. Type
         # information should not be stored, and matlab compatibility
@@ -299,9 +317,9 @@ class Writer(object):
             self._file = h5py.File(filename)
 
             self._file['/Data'].create_dataset('Data', \
-                shape=(0, NumberChannels), \
+                shape=(0, Info['NumberChannels']), \
                 dtype=self._data_types[data_storage_type], \
-                maxshape=(None, NumberChannels), \
+                maxshape=(None, Info['NumberChannels']), \
                 compression=compression, \
                 compression_opts=compression_opts, \
                 shuffle=shuffle, \
@@ -346,14 +364,17 @@ class Writer(object):
             dset[old_shape[0]:dset.shape[0], :] = dset.dtype.type(data)
 
         # Set NumberSamples to the new value.
-        self._file['/Info/NumberSamples'][()] = np.int64(dset.shape[0])
+        self._file_data['Info']['NumberSamples'] = \
+            np.int64(dset.shape[0])
+        self._file['/Info/NumberSamples'][()] = \
+            self._file_data['Info']['NumberSamples']
 
         # Flush the changes to disk so nothing is lost if we hang.
         self._file.flush()
 
     @property
     def number_samples(self):
-        return self._file['/Info/NumberSamples'][()]
+        self._file_data['Info']['NumberSamples']
 
     @property
     def StartTime(self):
