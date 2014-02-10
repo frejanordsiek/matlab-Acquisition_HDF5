@@ -150,6 +150,18 @@ nativeOffsets = hdf5read(filename,'/Info/Offsets');
 nativeScalings = hdf5read(filename,'/Info/Scalings');
 units = h5stringconvert(hdf5read(filename,'/Info/Units'));
 
+% channelNames and units need to be put into cell arrays if they are just
+% strings.
+
+if ~iscell(channelNames)
+    channelNames = {channelNames};
+end
+
+if ~iscell(units)
+    units = {units};
+end
+
+
 % Reconstruct daqinfo.ObjInfo.Channel.
 
 for ii=1:numberChannels
