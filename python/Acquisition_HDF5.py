@@ -298,13 +298,13 @@ class Writer(object):
                                                         dtype='float64')
         self._file_data['Info']['NumberSamples'] = np.int64(0)
 
-        # Write it all to file, truncating it if it exists. Type
+        # Write it all to file, truncating it if it exists. Python
         # information should not be stored, and matlab compatibility
         # should not be done. While the former would make it easier to
         # read the strings back in the same format
         hdf5storage.write(self._file_data, path='/', filename=filename,
                           truncate_existing=True,
-                          store_type_information=False,
+                          store_python_metadata=False,
                           matlab_compatible=False)
 
         # Create a growable empty DataSet for the data with all the
