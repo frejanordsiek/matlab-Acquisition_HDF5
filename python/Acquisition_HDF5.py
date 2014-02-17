@@ -33,6 +33,7 @@ Version 0.1
 __version__ = "0.1"
 
 
+import sys
 import platform
 from distutils.version import LooseVersion
 
@@ -40,6 +41,19 @@ import numpy as np
 import h5py
 
 import hdf5storage
+
+
+# Make a lookup of numpy types by data type value.
+_data_types = {'uint8': np.uint8,
+               'uint16': np.uint16,
+               'uint32': np.uint32,
+               'uint64': np.uint64,
+               'int8': np.int8,
+               'int16': np.int16,
+               'int32': np.int32,
+               'int64': np.int64,
+               'single': np.float32,
+               'double': np.float64}
 
 
 def _get_supported_version(version):
@@ -63,11 +77,20 @@ def _get_supported_version(version):
         return None
 
 
+def _convert_to_numpy_bytes(s):
+    if isinstance(s, np.bytes_):
+        return s
+    elif isinstance(s, bytes):
+        return np.bytes_(s)
+    else:
+        return np.bytes_(s.encode())
+
+
 class Writer(object):
     def __init__(self, filename,
                  Version=b'1.1.0',
-                 data_type=b'double',
-                 data_storage_type=b'single',
+                 data_type='double',
+                 data_storage_type='single',
                  compression='gzip',
                  compression_opts=9,
                  shuffle=True,
@@ -108,15 +131,21 @@ class Writer(object):
         # tuple, the first element is the name, the second is a buple of
         # types it must be one of, and the third is a default value to
         # give if present (if no default value is present, the parameter
-        # is required to be given).
+        # is required to be given). Also, all string types need to be
+        # converted to numpy bytes_.
+
+        if sys.hexversion >= 0x03000000:
+            string_types = (str, bytes, np.bytes_, np.str_)
+        else:
+            string_types = (unicode, str, np.bytes_, np.unicode_)
 
         params = [ \
-            ('VenderDriverDescription', (bytes, np.bytes_), b''), \
-            ('DeviceName', (bytes, np.bytes_), b''), \
-            ('ID', (bytes, np.bytes_), b''), \
-            ('TriggerType', (bytes, np.bytes_), b''), \
+            ('VenderDriverDescription', string_types, b''), \
+            ('DeviceName', string_types, b''), \
+            ('ID', string_types, b''), \
+            ('TriggerType', string_types, b''), \
             ('SampleFrequency', (np.float64,)), \
-            ('InputType', (bytes, np.bytes_), b''), \
+            ('InputType', string_types, b''), \
             ('NumberChannels', (np.int64,)), \
             ('Bits', (np.int64,), np.int64(-1)), \
             ('ChannelMappings', (np.ndarray, type(None)), None), \
@@ -136,7 +165,8 @@ class Writer(object):
             else:
                 raise ValueError("Info is missing field '"
                                  + param[0] + "'.")
-
+            if param[1] == string_types:
+                Info[param[0]] = _convert_to_numpy_bytes(Info[param[0]])
 
         # Check that we have a positive number of channels.
         if Info['NumberChannels'] < 1:
@@ -220,28 +250,16 @@ class Writer(object):
                              + 'row array with an element for each '
                              + 'channel.')
 
-        # Make a lookup of numpy types by data type value.
-        self._data_types = {b'uint8': np.uint8,
-                            b'uint16': np.uint16,
-                            b'uint32': np.uint32,
-                            b'uint64': np.uint64,
-                            b'int8': np.int8,
-                            b'int16': np.int16,
-                            b'int32': np.int32,
-                            b'int64': np.int64,
-                            b'single': np.float32,
-                            b'double': np.float64}
-
         # data_type and data_storage_types must be in the lookup.
-        if data_type not in self._data_types:
-            raise ValueError('data_type must be one of (' \
-                + b', '.join(list(self._data_types.keys())).decode() \
-                + b').')
+        if data_type not in _data_types:
+            raise ValueError('data_type must be one of ('
+                             + ', '.join(list(_data_types.keys()))
+                             + ').')
         # data_type and data_storage_types must be in the lookup.
-        if data_storage_type not in self._data_types:
-            raise ValueError('data_storage_type must be one of (' \
-                + b', '.join(list(self._data_types.keys())).decode() \
-                + b').')
+        if data_storage_type not in _data_types:
+            raise ValueError('data_storage_type must be one of ('
+                             + ', '.join(list(_data_types.keys()))
+                             + ').')
 
         # Validate chunks to make sure it is None, True, a tuple of two
         # ints, or a tuple of an int and None. All integers must be
@@ -281,13 +299,13 @@ class Writer(object):
             + platform.python_version()
 
         self._file_data = { \
-            'Type': np.bytes_(b'Acquisition HDF5'), \
+            'Type': np.bytes_('Acquisition HDF5'), \
             'Version': np.bytes_(new_version), \
             'Software': np.bytes_(software), \
             'Info': Info, \
             'Data': { \
-            'Type': np.bytes_(data_type), \
-            'StorageType': np.bytes_(data_storage_type)}}
+            'Type': _convert_to_numpy_bytes(data_type), \
+            'StorageType': _convert_to_numpy_bytes(data_storage_type)}}
 
         self._file_data['Info']['StartTime'] = np.zeros(shape=(6,),
                                                         dtype='float64')
@@ -313,7 +331,7 @@ class Writer(object):
 
             self._file['/Data'].create_dataset('Data', \
                 shape=(0, Info['NumberChannels']), \
-                dtype=self._data_types[data_storage_type], \
+                dtype=_data_types[data_storage_type], \
                 maxshape=(None, Info['NumberChannels']), \
                 compression=compression, \
                 compression_opts=compression_opts, \
@@ -380,3 +398,101 @@ class Writer(object):
         if type(value) == np.ndarray and value.dtype.name == 'float64' \
                 and value.shape == (6, ):
             self._file['/Info/StartTime'][:] = value
+
+
+class Reader(object):
+    def __init__(self, filename):
+        self._filename = filename
+
+        # Get and check the file type.
+        file_type = hdf5storage.read(path='/Type',
+                                     filename=filename).decode()
+        if file_type != 'Acquisition HDF5':
+            raise NotImplementedError('Unsupported file type.')
+
+        # Get and check the version.
+        self.Version = hdf5storage.read(path='/Version',
+                                        filename=filename).decode()
+        self._supported_version = \
+            _get_supported_version(self.Version)
+        if self._supported_version is None:
+            raise NotImplementedError('Unsupported Acquisition '
+                                      + 'HDF5 version: '
+                                      + self.Version)
+
+        # If it is version 1.1.0 or newer, it will have the Software
+        # field which we want to grab (set to None otherwise).
+        if LooseVersion(self._supported_version) \
+                >= LooseVersion('1.1.0'):
+            self.Software = hdf5storage.read( \
+                path='/Software', filename=filename).decode()
+        else:
+            self.Software = None
+
+        # Read the Info field and convert it to a dict from a structred
+        # ndarray if it isn't a dict already.
+        info = hdf5storage.read(path='/Info', filename=filename)
+        if isinstance(info, dict):
+            self.Info = info
+        else:
+            self.Info = dict()
+            for field in info.dtype.names:
+                self.Info[field] = info[field][0]
+
+        # Convert string types to str from np.bytes_.
+        for k, v in self.Info.items():
+            if isinstance(v, np.bytes_):
+                self.Info[k] = v.decode()
+
+        # Grab and check the type and storage type.
+        tp = hdf5storage.read(path='/Data/Type',
+                              filename=filename).decode()
+        if tp not in _data_types:
+            raise NotImplementedError('Unsupported data type: '
+                                        + tp)
+        self.Type = _data_types[tp]
+        tp = hdf5storage.read(path='/Data/StorageType',
+                              filename=filename).decode()
+        if tp not in _data_types:
+            raise NotImplementedError('Unsupported storage type: '
+                                        + tp)
+        self.StorageType = _data_types[tp]
+
+        # Check that /Data/Data is present.
+        with h5py.File(filename, 'r') as f:
+            if '/Data/Data' not in f:
+                raise NotImplementedError('Couldn''t find the acquired '
+                                          'data.')
+
+    def data_path(self):
+        return '/Data/Data'
+
+    def __getitem__(self, k):
+        with h5py.File(self._filename, 'r') as f:
+            data = f['/Data/Data'][k]
+        # Convert the type if necessary.
+        if self.Type != self.StorageType:
+            data = self.Type(data)
+
+        # Figure out which channels were read.
+        if isinstance(k, Ellipsis):
+            channels = [i for i in range(0, data.shape[1])]
+        else:
+            channels = [i for i in
+                        range(k[1].start, k[1].stop, k[1].step)]
+
+        # Transform any channels with a non-zero offset or non-unity
+        # scaling.
+        for i in range(0, len(channels)):
+            ch = channels[i]
+            offset = self.Info['Offsets'][ch]
+            scaling = self.Info['Scalings'][ch]
+            if scaling != 1 and offset != 0:
+                data[:, i] = scaling*data[:, i] + offset
+            elif scaling != 1:
+                data[:, i] *= scaling
+            elif offset != 0:
+                data[:, i] += offset
+
+        # Done transforming data.
+        return data
