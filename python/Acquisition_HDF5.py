@@ -140,7 +140,7 @@ class Writer(object):
             string_types = (unicode, str, np.bytes_, np.unicode_)
 
         params = [ \
-            ('VenderDriverDescription', string_types, b''), \
+            ('VendorDriverDescription', string_types, b''), \
             ('DeviceName', string_types, b''), \
             ('ID', string_types, b''), \
             ('TriggerType', string_types, b''), \
@@ -406,13 +406,13 @@ class Reader(object):
 
         # Get and check the file type.
         file_type = hdf5storage.read(path='/Type',
-                                     filename=filename).decode()
+                                     filename=filename)[()].decode()
         if file_type != 'Acquisition HDF5':
             raise NotImplementedError('Unsupported file type.')
 
         # Get and check the version.
         self.Version = hdf5storage.read(path='/Version',
-                                        filename=filename).decode()
+                                        filename=filename)[()].decode()
         self._supported_version = \
             _get_supported_version(self.Version)
         if self._supported_version is None:
@@ -425,7 +425,7 @@ class Reader(object):
         if LooseVersion(self._supported_version) \
                 >= LooseVersion('1.1.0'):
             self.Software = hdf5storage.read( \
-                path='/Software', filename=filename).decode()
+                path='/Software', filename=filename)[()].decode()
         else:
             self.Software = None
 
@@ -446,13 +446,13 @@ class Reader(object):
 
         # Grab and check the type and storage type.
         tp = hdf5storage.read(path='/Data/Type',
-                              filename=filename).decode()
+                              filename=filename)[()].decode()
         if tp not in _data_types:
             raise NotImplementedError('Unsupported data type: '
                                         + tp)
         self.Type = _data_types[tp]
         tp = hdf5storage.read(path='/Data/StorageType',
-                              filename=filename).decode()
+                              filename=filename)[()].decode()
         if tp not in _data_types:
             raise NotImplementedError('Unsupported storage type: '
                                         + tp)
@@ -464,22 +464,25 @@ class Reader(object):
                 raise NotImplementedError('Couldn''t find the acquired '
                                           'data.')
 
+    @property
     def data_path(self):
         return '/Data/Data'
 
     def __getitem__(self, k):
         with h5py.File(self._filename, 'r') as f:
-            data = f['/Data/Data'][k]
+            shape = f[self.data_path].shape
+            data = f[self.data_path][k]
         # Convert the type if necessary.
         if self.Type != self.StorageType:
             data = self.Type(data)
 
         # Figure out which channels were read.
-        if isinstance(k, Ellipsis):
-            channels = [i for i in range(0, data.shape[1])]
+        if isinstance(k, type(Ellipsis)) or len(k) == 1:
+            channels = [i for i in range(shape[1])]
+        elif isinstance(k[1], int):
+            channels = [k[1]]
         else:
-            channels = [i for i in
-                        range(k[1].start, k[1].stop, k[1].step)]
+            channels = [i for i in range(shape[1])][k[1]]
 
         # Transform any channels with a non-zero offset or non-unity
         # scaling.
