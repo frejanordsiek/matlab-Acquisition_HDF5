@@ -460,7 +460,7 @@ class Reader(object):
 
         # Check that /Data/Data is present.
         with h5py.File(filename, 'r') as f:
-            if '/Data/Data' not in f:
+            if self.data_path not in f:
                 raise NotImplementedError('Couldn''t find the acquired '
                                           'data.')
 
