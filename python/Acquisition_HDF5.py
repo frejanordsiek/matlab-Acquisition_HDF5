@@ -88,7 +88,7 @@ def _convert_to_numpy_bytes(s):
 
 class Writer(object):
     def __init__(self, filename,
-                 Version=b'1.1.0',
+                 Version='1.1.0',
                  data_type='double',
                  data_storage_type='single',
                  compression='gzip',
@@ -104,10 +104,10 @@ class Writer(object):
 
         # Check that the Version is valid, and get the Version string we
         # will be using.
-        if not isinstance(Version, bytes):
+        if not isinstance(Version, str):
             raise ValueError('Version must be a bytes.')
 
-        new_version = _get_supported_version(Version.decode()).encode()
+        new_version = _get_supported_version(Version).encode()
         if new_version is None:
             raise ValueError('Unsupported Version.')
 
@@ -121,9 +121,9 @@ class Writer(object):
         # All the simple arguments must be the right type, and that the
         # right things are there.
 
-        if type(Version) != bytes \
-                or type(data_type) != bytes \
-                or type(data_storage_type) != bytes:
+        if type(Version) != str \
+                or type(data_type) != str \
+                or type(data_storage_type) != str:
             raise ValueError('At least one input arguments is not of '
                              + 'right type.')
 
