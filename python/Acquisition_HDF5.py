@@ -479,7 +479,7 @@ class Reader(object):
         # Figure out which channels were read.
         if isinstance(k, type(Ellipsis)) or len(k) == 1:
             channels = [i for i in range(shape[1])]
-        elif isinstance(k[1], int):
+        elif isinstance(k[1], (int, np.integer)):
             channels = [k[1]]
         else:
             channels = [i for i in range(shape[1])][k[1]]
