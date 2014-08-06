@@ -11,7 +11,7 @@ PDFLATEX = pdflatex
 
 # Define the targets to be built.
 
-TARGETS = docs/Acquisition_HDF5.pdf
+TARGETS = latex/Acquisition_HDF5.pdf
 
 all: $(TARGETS)
 
@@ -21,10 +21,10 @@ all: $(TARGETS)
 
 clean:
 	$(RM) $(TARGETS)
-	$(RM) docs/*.aux
-	$(RM) docs/*.log
-	$(RM) docs/*.out
-	$(RM) docs/*.toc
+	$(RM) latex/*.aux
+	$(RM) latex/*.log
+	$(RM) latex/*.out
+	$(RM) latex/*.toc
 
 %.pdf: %.tex
 	$(RM) $*.aux
