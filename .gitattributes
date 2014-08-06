@@ -9,3 +9,4 @@
 *.m text
 *.py text
 Makefile text
+*.bat text eol=crlf
