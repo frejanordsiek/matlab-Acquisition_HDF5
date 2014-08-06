@@ -53,6 +53,7 @@ Note, HDF5 uses C style array dimension order, as opposed to Fortran ordering (s
 \section{Versions}
 
 Versions \verb|0.0.1| to \verb|1.0.0| are the same format even though they are labelled differently.
+Version \verb|1.1.0| added the field \verb|/Software|, described in Section~\ref{sec:software}.
 Only a single trigger is currently supported.
 
 \section{Storage And Extraction}
@@ -97,6 +98,13 @@ It is always set to \verb|"Acquisition HDF5"|.
 Version string of the Acquisition HDF5 file format.
 Has the form \verb|"M.m.r"| where  \verb|M| is the major version, \verb|m| is the minor version, and \verb|r| is the revision number.
 
+
+\subsection{/Software} \label{sec:software}
+
+\verb|1x1 String|
+
+The software used to write the acqusition file.
+An example is \\ \verb|"Acquisition_HDF5 0.1 on CPython 3.3.0"|.
 
 
 \subsection{/Info/}
