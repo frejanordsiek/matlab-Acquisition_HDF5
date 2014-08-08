@@ -63,7 +63,7 @@ def _get_supported_version(version):
     # First, we need a LooseVersion lists of all versions that one might
     # see out there that are currently supported. Then, everything
     # between 0.0.1 and 1.0.0 is the same as 1.0.0.
-    versions_supported = ['0.0.1', '1.0.0', '1.1.0']
+    versions_supported = ['0.0.1', '1.0.0', '1.1.0', '2.0']
     lvs = [LooseVersion(v) for v in versions_supported]
 
     if LooseVersion('0.0.1') <= loose_version \
@@ -88,7 +88,7 @@ def _convert_to_numpy_bytes(s):
 
 class Writer(object):
     def __init__(self, filename,
-                 Version='1.1.0',
+                 Version='2.0',
                  data_type='double',
                  data_storage_type='single',
                  compression='gzip',
@@ -147,6 +147,7 @@ class Writer(object):
             ('SampleFrequency', (np.float64,)), \
             ('InputType', string_types, b''), \
             ('NumberChannels', (np.int64,)), \
+            ('NumberSamplesBinned', (np.int64,), 1), \
             ('Bits', (np.int64,), np.int64(-1)), \
             ('ChannelMappings', (np.ndarray, type(None)), None), \
             ('ChannelNames', (np.ndarray, type(None)), None), \
@@ -249,6 +250,11 @@ class Writer(object):
             raise ValueError('Units isn''t a numpy.bytes_ '
                              + 'row array with an element for each '
                              + 'channel.')
+
+        # NumberSamplesBinned must be a positive integer.
+        if Info['NumberSamplesBinned'] < 1:
+            raise ValueError('NumberSamplesBinned must be a positive '
+                             + 'numpy.int64.')
 
         # data_type and data_storage_types must be in the lookup.
         if data_type not in _data_types:

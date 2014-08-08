@@ -56,7 +56,9 @@ File Versions
              * Only storing a single trigger of the DAQ per file is
                supported
 
-1.1.0. Added the ``'/Software'`` field.
+1.1.0. Added the ``'/Software'`` Dataset.
+
+2.0. Added temporal binning of samples (see Section :ref:`binning`).
 
 
 Storage And Extraction
@@ -101,64 +103,86 @@ algorithm) contained in the HDF5 library. Chunking is strongly
 encouraged.
 
 
+.. _binning:
+
+Temporal Binning
+================
+
+.. versionadded:: 2.0
+
+Temporal binning of channel samples is supported. The number of samples
+binned together is specified in the Dataset
+``'/Info/NumberSamplesBinned'``. Then, ``'/Data/Data'`` contains the
+binned samples. For backwards compatibility with software that expects
+version 1.1.0 or earlier, ``'/Info/SampleFequency'`` must hold the
+frequency of recorded samples per channel (actual sample frequency
+divided by the number of samples used per bin) and
+``'/Info/NumberSamples'`` holds the number of samples per channel after
+temporal binning.
+
+If the ``'/Info/NumberSamplesBinned'`` is not present, it is assumed to
+be equal to 1 regardless of the file format version.
+
+
 Datasets
 ========
 
 The datasets are described in the table below. The first version of the
 file format the Dataset appears in (blank if in all of them), the size
-(dimensions) of the Dataset in row-column order (scalar means
-0-dimensional and a single number means 1-dimensional), its type, and
-its description are all given.
+(dimensions) of the Dataset in row-column order (a single number means
+1-dimensional), its type, and its description are all given.
 
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| Dataset                       | Version | Size   | Type         | Description                                                                                  |
-+===============================+=========+========+==============+==============================================================================================+
-| /Type                         |         | scalar | ASCII string | Type of file format, which is always ``'Acquisition HDF5'``.                                 |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Version                      |         | scalar | ASCII string | Version of file format (e.g. ``'1.1.0'``).                                                   |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Software                     | 1.1.0   | scalar | ASCII string | Software that made the file.                                                                 |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Data/Data                    |         | N x M  | Store Type   | The acquired data is stored in the format specified by ``'/Data/StorageFormat'``.            |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Data/StorageType             |         | scalar | ASCII string | Type that the data is stored as. [1]_                                                        |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Data/Type                    |         | scalar | ASCII string | Type the data should have after extraction. [1]_                                             |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/Bits                    |         | scalar | Int64        | Bit depth of the ADC.                                                                        |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/ChannelInputRanges      |         | M x 2  | Float64      | One row per channel (in order) specifying the input ranges in minimum, maximum order.        |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/ChannelMappings         |         | M      | Int64        | The hardware channels corresponding to each acquired channel (in order).                     |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/ChannelNames            |         | M      | ASCII string | The names of each channel in order.                                                          |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/DeviceName              |         | scalar | ASCII string | The name of the DAQ device (model).                                                          |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/ID                      |         | scalar | ASCII string | The ID of the DAQ device (which one if more than one is connected).                          |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/InputType               |         | scalar | ASCII string | Analog input type (e.g. ``'SingleEnded'``, ``'Differential'``, etc.).                        |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/NumberChannels          |         | scalar | Int64        | M, the number of channels acquired from.                                                     |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/NumberSamples           |         | scalar | Int64        | N, the number of acquired samples from each channel.                                         |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/Offsets                 |         | M      | Float64      | The offsets, |D|, for each channel in order.                                                 |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/SampleFrequency         |         | scalar | Float64      | The sample frequency in Hz.                                                                  |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/Scalings                |         | M      | Float64      | The scaling factors, |S|, for each channel in order.                                         |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/StartTime               |         | 6      | Float64      | The time at which acquisition was triggered (year, month, day, hour, minute, seconds order). |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/TriggerType             |         | scalar | ASCII string | The type of trigger starting acquisition (e.g. ``'hardware'``, ``'software'``, etc.).        |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/Units                   |         | M      | ASCII string | The units of the measurment of each channel in order (e.g. ``'volts'``, ``'amps'``, etc.).   |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
-| /Info/VendorDriverDescription |         | scalar | ASCII string | The hardware vendor and driver.                                                              |
-+-------------------------------+---------+--------+--------------+----------------------------------------------------------------------------------------------+
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| Dataset                       | Version | Size  | Type         | Description                                                                                  |
++===============================+=========+=======+==============+==============================================================================================+
+| /Type                         |         | 1     | ASCII string | Type of file format, which is always ``'Acquisition HDF5'``.                                 |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Version                      |         | 1     | ASCII string | Version of file format (e.g. ``'1.1.0'``).                                                   |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Software                     | 1.1.0   | 1     | ASCII string | Software that made the file.                                                                 |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Data/Data                    |         | N x M | Store Type   | The acquired data is stored in the format specified by ``'/Data/StorageFormat'``.            |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Data/StorageType             |         | 1     | ASCII string | Type that the data is stored as. [1]_                                                        |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Data/Type                    |         | 1     | ASCII string | Type the data should have after extraction. [1]_                                             |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/Bits                    |         | 1     | Int64        | Bit depth of the ADC.                                                                        |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/ChannelInputRanges      |         | M x 2 | Float64      | One row per channel (in order) specifying the input ranges in minimum, maximum order.        |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/ChannelMappings         |         | M     | Int64        | The hardware channels corresponding to each acquired channel (in order).                     |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/ChannelNames            |         | M     | ASCII string | The names of each channel in order.                                                          |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/DeviceName              |         | 1     | ASCII string | The name of the DAQ device (model).                                                          |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/ID                      |         | 1     | ASCII string | The ID of the DAQ device (which one if more than one is connected).                          |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/InputType               |         | 1     | ASCII string | Analog input type (e.g. ``'SingleEnded'``, ``'Differential'``, etc.).                        |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/NumberChannels          |         | 1     | Int64        | M, the number of channels acquired from.                                                     |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/NumberSamples           |         | 1     | Int64        | N, the number of recorded samples from each channel.                                         |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/NumberSamplesBinned     | 2.0     | 1     | Int64        | Number of samples binned together before recording.                                          |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/Offsets                 |         | M     | Float64      | The offsets, |D|, for each channel in order.                                                 |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/SampleFrequency         |         | 1     | Float64      | The frequency of recorded samples in Hz.                                                     |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/Scalings                |         | M     | Float64      | The scaling factors, |S|, for each channel in order.                                         |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/StartTime               |         | 6     | Float64      | The time at which acquisition was triggered (year, month, day, hour, minute, seconds order). |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/TriggerType             |         | 1     | ASCII string | The type of trigger starting acquisition (e.g. ``'hardware'``, ``'software'``, etc.).        |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/Units                   |         | M     | ASCII string | The units of the measurment of each channel in order (e.g. ``'volts'``, ``'amps'``, etc.).   |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
+| /Info/VendorDriverDescription |         | 1     | ASCII string | The hardware vendor and driver.                                                              |
++-------------------------------+---------+-------+--------------+----------------------------------------------------------------------------------------------+
 
 .. [1] Must be a valid string label for the data type in the table
        below.
@@ -196,6 +220,7 @@ Dataset                        |matlab| equivalent
 /Info/InputType                ``daqinfo.ObjInfo.InputType``
 /Info/NumberChannels
 /Info/NumberSamples            ``daqinfo.ObjInfo.SamplesAcquired``
+/Info/NumberSamplesBinned
 /Info/Offsets                  ``daqinfo.ObjInfo.Channel(:).NativeOffset``
 /Info/SampleFrequency          ``daqinfo.ObjInfo.SampleRate``
 /Info/Scalings                 ``daqinfo.ObjInfo.Channel(:).NativeOffset``
