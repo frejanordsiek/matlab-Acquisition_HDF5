@@ -1,5 +1,0 @@
-include *.txt
-include *.rst
-recursive-include latex *.tex
-recursive-include doc *
-prune doc/build
